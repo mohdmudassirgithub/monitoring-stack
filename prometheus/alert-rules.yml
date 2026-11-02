@@ -1,0 +1,66 @@
+groups:
+  - name: host-alerts
+    rules:
+      - alert: HighCPUUsage
+        expr: 100 - (avg by(instance) (rate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) > 85
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High CPU on {{ $labels.instance }}"
+          description: "CPU usage above 85% for 5 minutes."
+
+      - alert: HighMemoryUsage
+        expr: (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100 > 90
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High memory on {{ $labels.instance }}"
+          description: "Memory usage above 90% for 5 minutes."
+
+      - alert: DiskSpaceLow
+        expr: (node_filesystem_avail_bytes{fstype!~"tmpfs|overlay"} / node_filesystem_size_bytes{fstype!~"tmpfs|overlay"}) * 100 < 10
+        for: 10m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Low disk space on {{ $labels.instance }}"
+          description: "Less than 10% free on {{ $labels.mountpoint }}."
+
+      - alert: HostDown
+        expr: up{job="node-exporter"} == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Host {{ $labels.instance }} unreachable"
+          description: "Node exporter has not responded for 2 minutes."
+
+  - name: container-alerts
+    rules:
+      - alert: ContainerRestartLoop
+        expr: increase(container_start_time_seconds[15m]) > 3
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Container {{ $labels.name }} restarting repeatedly"
+
+      - alert: ContainerHighMemory
+        expr: (container_memory_usage_bytes{name!=""} / container_spec_memory_limit_bytes{name!=""}) * 100 > 90
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Container {{ $labels.name }} near memory limit"
+
+  - name: service-alerts
+    rules:
+      - alert: ServiceDown
+        expr: up{job="application"} == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Service {{ $labels.service }} is down"
